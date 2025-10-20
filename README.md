@@ -12,9 +12,10 @@ Este projeto extrai automaticamente as informações de duração e data de cria
 - Análise e filtragem de arquivos GPX
 - Extração de pontos GPS dentro do intervalo temporal do vídeo
 - Geração de novo arquivo GPX filtrado
-- **Geração automática de mapa visual (.jpg)** mostrando:
+- **Geração automática de mapa visual (.png)** mostrando:
   - Traçado completo do GPX original em branco
-  - Trecho filtrado (correspondente ao vídeo) em amarelo
+  - Trecho filtrado (correspondente ao vídeo) em vermelho destacado
+  - Imagem PNG com fundo transparente
 - Interface de linha de comando com feedback visual detalhado
 - Validação de entrada e tratamento de erros robusto
 
@@ -111,7 +112,7 @@ Os arquivos gerados serão salvos automaticamente no **mesmo diretório do víde
 
 - Entrada: `C:\videos\meu_video.mp4`
 - Saída GPX: `C:\videos\meu_video.gpx`
-- Saída Mapa: `C:\videos\meu_video_mapa.jpg`
+- Saída Mapa: `C:\videos\meu_video_mapa.png` (imagem PNG transparente)
 
 ### Exemplo de Saída do Programa
 
@@ -137,7 +138,7 @@ Os arquivos gerados serão salvos automaticamente no **mesmo diretório do víde
 
 💾 Gerando arquivo GPX filtrado...
 🗺️  Gerando mapa visual...
-   └─ Mapa salvo: C:\videos\viagem_mapa.jpg
+   └─ Mapa salvo: C:\videos\viagem_mapa.png
 
 ╔════════════════════════════════════════════════════════╗
 ║                    ✓ SUCESSO!                         ║
@@ -148,7 +149,7 @@ Os arquivos gerados serão salvos automaticamente no **mesmo diretório do víde
    ├─ Pontos filtrados: 932
    ├─ Percentual utilizado: 17.20%
    ├─ Arquivo GPX: C:\videos\viagem.gpx
-   └─ Mapa visual: C:\videos\viagem_mapa.jpg
+   └─ Mapa visual: C:\videos\viagem_mapa.png
 ```
 
 ## Considerações Importantes

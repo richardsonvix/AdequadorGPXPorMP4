@@ -258,6 +258,32 @@ class Program
         );
     }
 
+    static GpsBounds CalcularBoundsCentralizados(List<GpsPoint> pontosCentrais, double zoomPercent = 0.25)
+    {
+        if (pontosCentrais.Count == 0)
+            throw new InvalidOperationException("Nenhum ponto GPS disponível para calcular bounds");
+
+        double minLat = pontosCentrais.Min(p => p.Latitude);
+        double maxLat = pontosCentrais.Max(p => p.Latitude);
+        double minLon = pontosCentrais.Min(p => p.Longitude);
+        double maxLon = pontosCentrais.Max(p => p.Longitude);
+
+        // Aplicar zoom: 0.25 = 25% de margem adicional ao redor do trecho
+        // Valores menores = mais zoom (menos margem)
+        double latRange = maxLat - minLat;
+        double lonRange = maxLon - minLon;
+
+        double latMargin = latRange * zoomPercent;
+        double lonMargin = lonRange * zoomPercent;
+
+        return new GpsBounds(
+            minLat - latMargin,
+            maxLat + latMargin,
+            minLon - lonMargin,
+            maxLon + lonMargin
+        );
+    }
+
     static SKPoint ConverterGpsParaPixel(GpsPoint ponto, GpsBounds bounds, int largura, int altura)
     {
         // Normalizar coordenadas (0-1)
@@ -281,7 +307,7 @@ class Program
         int largura = 1920,
         int altura = 1080)
     {
-        // Calcular bounds
+        // Calcular bounds considerando todos os pontos (sem zoom)
         var bounds = CalcularBounds(pontosOriginais, pontosFiltrados);
 
         // Criar superfície de desenho
@@ -302,7 +328,7 @@ class Program
 
         using var paintFiltrado = new SKPaint
         {
-            Color = SKColors.Yellow,
+            Color = SKColors.Red,
             StrokeWidth = 5,
             Style = SKPaintStyle.Stroke,
             IsAntialias = true
@@ -325,7 +351,7 @@ class Program
             path.Dispose();
         }
 
-        // Desenhar traçado filtrado (amarelo)
+        // Desenhar traçado filtrado (vermelho)
         if (pontosFiltrados.Count > 1)
         {
             var path = new SKPath();
@@ -352,7 +378,7 @@ class Program
         };
 
         canvas.DrawText("━━ Traçado Original", 30, 40, paintTexto);
-        paintTexto.Color = SKColors.Yellow;
+        paintTexto.Color = SKColors.Red;
         canvas.DrawText("━━ Trecho Filtrado", 30, 75, paintTexto);
 
         // Salvar imagem como PNG transparente
