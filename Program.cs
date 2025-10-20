@@ -159,7 +159,7 @@ class Program
             // 4.1 Gerar imagem do mapa
             Console.WriteLine("🗺️  Gerando mapa visual...");
 
-            string caminhoImagemMapa = Path.Combine(diretorioVideo, $"{nomeVideoSemExtensao}_mapa.jpg");
+            string caminhoImagemMapa = Path.Combine(diretorioVideo, $"{nomeVideoSemExtensao}_mapa.png");
 
             var coordenadasOriginais = ExtrairCoordenadas(pontosOriginais, ns);
             var coordenadasFiltradas = ExtrairCoordenadas(pontosFiltrados, ns);
@@ -288,8 +288,8 @@ class Program
         using var surface = SKSurface.Create(new SKImageInfo(largura, altura));
         var canvas = surface.Canvas;
 
-        // Fundo escuro
-        canvas.Clear(SKColors.Black);
+        // Fundo transparente
+        canvas.Clear(SKColors.Transparent);
 
         // Configurar estilos de desenho
         using var paintOriginal = new SKPaint
@@ -355,9 +355,9 @@ class Program
         paintTexto.Color = SKColors.Yellow;
         canvas.DrawText("━━ Trecho Filtrado", 30, 75, paintTexto);
 
-        // Salvar imagem
+        // Salvar imagem como PNG transparente
         using var image = surface.Snapshot();
-        using var data = image.Encode(SKEncodedImageFormat.Jpeg, 95);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         using var stream = File.OpenWrite(caminhoSaida);
         data.SaveTo(stream);
     }
