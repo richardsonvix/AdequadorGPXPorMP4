@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AdequadorGPXPorMP4": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\richardson\\Downloads\\PEDAL TUNEL DOS VENTOS\\20251018_053055A.mp4\" \"C:\\Users\\richardson\\Downloads\\PEDAL TUNEL DOS VENTOS\\_GOTOES_4724067523888398.gpx\""
+    }
+  }
+}
