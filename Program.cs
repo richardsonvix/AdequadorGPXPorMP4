@@ -7,6 +7,8 @@ using SkiaSharp;
 
 record GpsBounds(double MinLat, double MaxLat, double MinLon, double MaxLon);
 record GpsPoint(double Latitude, double Longitude);
+record TileCoord(int X, int Y, int Zoom);
+record TileBounds(int MinX, int MaxX, int MinY, int MaxY, int Zoom);
 
 // ============================================================================
 // CLASSE PRINCIPAL
@@ -14,7 +16,7 @@ record GpsPoint(double Latitude, double Longitude);
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         try
         {
@@ -164,7 +166,7 @@ class Program
             var coordenadasOriginais = ExtrairCoordenadas(pontosOriginais, ns);
             var coordenadasFiltradas = ExtrairCoordenadas(pontosFiltrados, ns);
 
-            GerarImagemMapa(coordenadasOriginais, coordenadasFiltradas, caminhoImagemMapa);
+            await GerarImagemMapa(coordenadasOriginais, coordenadasFiltradas, caminhoImagemMapa);
             Console.WriteLine($"   └─ Mapa salvo: {caminhoImagemMapa}\n");
 
             // 5. Exibir resumo
@@ -300,7 +302,138 @@ class Program
         return new SKPoint(x, y);
     }
 
-    static void GerarImagemMapa(
+    // ========================================================================
+    // FUNÇÕES DE TILES DE MAPA (WEB MERCATOR)
+    // ========================================================================
+
+    static TileCoord LatLonParaTile(double lat, double lon, int zoom)
+    {
+        // Converter latitude/longitude para coordenadas de tile (Web Mercator)
+        int n = 1 << zoom; // 2^zoom
+        int x = (int)Math.Floor((lon + 180.0) / 360.0 * n);
+
+        double latRad = lat * Math.PI / 180.0;
+        int y = (int)Math.Floor((1.0 - Math.Log(Math.Tan(latRad) + 1.0 / Math.Cos(latRad)) / Math.PI) / 2.0 * n);
+
+        return new TileCoord(x, y, zoom);
+    }
+
+    static TileBounds CalcularTilesNecessarios(GpsBounds bounds, int zoom)
+    {
+        var topLeft = LatLonParaTile(bounds.MaxLat, bounds.MinLon, zoom);
+        var bottomRight = LatLonParaTile(bounds.MinLat, bounds.MaxLon, zoom);
+
+        return new TileBounds(
+            Math.Min(topLeft.X, bottomRight.X),
+            Math.Max(topLeft.X, bottomRight.X),
+            Math.Min(topLeft.Y, bottomRight.Y),
+            Math.Max(topLeft.Y, bottomRight.Y),
+            zoom
+        );
+    }
+
+    static async Task<SKBitmap?> BaixarTile(int x, int y, int zoom, HttpClient httpClient)
+    {
+        try
+        {
+            // Usar Esri World Imagery (satélite gratuito)
+            string url = $"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{zoom}/{y}/{x}";
+
+            var response = await httpClient.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var stream = await response.Content.ReadAsStreamAsync();
+                return SKBitmap.Decode(stream);
+            }
+        }
+        catch
+        {
+            // Ignorar erros de download individual
+        }
+
+        return null;
+    }
+
+    static (double lat, double lon) TileParaLatLon(int x, int y, int zoom)
+    {
+        // Converter coordenadas de tile de volta para lat/lon (canto superior esquerdo do tile)
+        int n = 1 << zoom;
+        double lon = x / (double)n * 360.0 - 180.0;
+        double latRad = Math.Atan(Math.Sinh(Math.PI * (1 - 2 * y / (double)n)));
+        double lat = latRad * 180.0 / Math.PI;
+        return (lat, lon);
+    }
+
+    static async Task RenderizarTilesDeFundo(SKCanvas canvas, GpsBounds bounds, int largura, int altura)
+    {
+        // Determinar o nível de zoom adequado baseado na área
+        int zoom = DeterminarZoomOtimo(bounds, largura, altura);
+
+        // Calcular quais tiles precisamos
+        var tileBounds = CalcularTilesNecessarios(bounds, zoom);
+
+        Console.WriteLine($"   ├─ Baixando tiles de mapa (zoom {zoom})...");
+
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("User-Agent", "VideoGpsFilter/1.0");
+
+        int totalTiles = (tileBounds.MaxX - tileBounds.MinX + 1) * (tileBounds.MaxY - tileBounds.MinY + 1);
+        int tilesDownloaded = 0;
+
+        // Baixar e desenhar cada tile
+        for (int tileY = tileBounds.MinY; tileY <= tileBounds.MaxY; tileY++)
+        {
+            for (int tileX = tileBounds.MinX; tileX <= tileBounds.MaxX; tileX++)
+            {
+                var tileBitmap = await BaixarTile(tileX, tileY, zoom, httpClient);
+                if (tileBitmap != null)
+                {
+                    // Calcular posição do tile na imagem
+                    var (tileLatTop, tileLonLeft) = TileParaLatLon(tileX, tileY, zoom);
+                    var (tileLatBottom, tileLonRight) = TileParaLatLon(tileX + 1, tileY + 1, zoom);
+
+                    var topLeft = ConverterGpsParaPixel(new GpsPoint(tileLatTop, tileLonLeft), bounds, largura, altura);
+                    var bottomRight = ConverterGpsParaPixel(new GpsPoint(tileLatBottom, tileLonRight), bounds, largura, altura);
+
+                    var destRect = SKRect.Create(
+                        topLeft.X,
+                        topLeft.Y,
+                        bottomRight.X - topLeft.X,
+                        bottomRight.Y - topLeft.Y
+                    );
+
+                    canvas.DrawBitmap(tileBitmap, destRect);
+                    tileBitmap.Dispose();
+
+                    tilesDownloaded++;
+                }
+            }
+        }
+
+        Console.WriteLine($"   ├─ Tiles baixados: {tilesDownloaded}/{totalTiles}");
+    }
+
+    static int DeterminarZoomOtimo(GpsBounds bounds, int largura, int altura)
+    {
+        // Calcular o zoom baseado na área coberta
+        double latDiff = bounds.MaxLat - bounds.MinLat;
+        double lonDiff = bounds.MaxLon - bounds.MinLon;
+
+        // Estimar zoom - valores típicos entre 10-16 para áreas locais
+        for (int zoom = 16; zoom >= 10; zoom--)
+        {
+            var tiles = CalcularTilesNecessarios(bounds, zoom);
+            int numTiles = (tiles.MaxX - tiles.MinX + 1) * (tiles.MaxY - tiles.MinY + 1);
+
+            // Limitar a ~20 tiles para não sobrecarregar
+            if (numTiles <= 20)
+                return zoom;
+        }
+
+        return 12; // Zoom padrão
+    }
+
+    static async Task GerarImagemMapa(
         List<GpsPoint> pontosOriginais,
         List<GpsPoint> pontosFiltrados,
         string caminhoSaida,
@@ -314,8 +447,11 @@ class Program
         using var surface = SKSurface.Create(new SKImageInfo(largura, altura));
         var canvas = surface.Canvas;
 
-        // Fundo transparente
-        canvas.Clear(SKColors.Transparent);
+        // Fundo preto como fallback
+        canvas.Clear(SKColors.Black);
+
+        // Baixar e renderizar tiles de mapa de fundo
+        await RenderizarTilesDeFundo(canvas, bounds, largura, altura);
 
         // Configurar estilos de desenho
         using var paintOriginal = new SKPaint

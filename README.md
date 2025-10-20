@@ -13,9 +13,10 @@ Este projeto extrai automaticamente as informações de duração e data de cria
 - Extração de pontos GPS dentro do intervalo temporal do vídeo
 - Geração de novo arquivo GPX filtrado
 - **Geração automática de mapa visual (.png)** mostrando:
+  - Imagem de satélite de fundo (tiles Esri World Imagery)
   - Traçado completo do GPX original em branco
   - Trecho filtrado (correspondente ao vídeo) em vermelho destacado
-  - Imagem PNG com fundo transparente
+  - Renderização otimizada com zoom automático
 - Interface de linha de comando com feedback visual detalhado
 - Validação de entrada e tratamento de erros robusto
 
@@ -34,6 +35,7 @@ Este projeto extrai automaticamente as informações de duração e data de cria
 
 - **Sistema Operacional:** Windows 10/11, Linux ou macOS
 - **.NET 9.0 Runtime** ou superior
+- **Conexão com Internet** (para baixar tiles de mapas de satélite)
 - Arquivo de vídeo no formato MP4
 - Arquivo GPX com pontos de rastreamento contendo timestamps
 
@@ -112,7 +114,7 @@ Os arquivos gerados serão salvos automaticamente no **mesmo diretório do víde
 
 - Entrada: `C:\videos\meu_video.mp4`
 - Saída GPX: `C:\videos\meu_video.gpx`
-- Saída Mapa: `C:\videos\meu_video_mapa.png` (imagem PNG transparente)
+- Saída Mapa: `C:\videos\meu_video_mapa.png` (imagem PNG com mapa de satélite)
 
 ### Exemplo de Saída do Programa
 
@@ -153,6 +155,15 @@ Os arquivos gerados serão salvos automaticamente no **mesmo diretório do víde
 ```
 
 ## Considerações Importantes
+
+### Mapa de Satélite
+
+O programa utiliza tiles de imagens de satélite do **Esri World Imagery** para renderizar o fundo do mapa:
+- Os tiles são baixados automaticamente durante a geração da imagem
+- Requer conexão com internet ativa
+- O nível de zoom é calculado automaticamente baseado na área GPS
+- Os tiles são gratuitos para uso não comercial (cortesia da Esri)
+- A primeira geração pode demorar alguns segundos devido ao download
 
 ### Fuso Horário
 
@@ -199,6 +210,12 @@ Verifique se o caminho está correto e se o arquivo existe. Use aspas para camin
 - Certifique-se de ter o .NET 9.0 SDK instalado
 - Execute `dotnet restore` para restaurar as dependências
 - Verifique se o Visual Studio está atualizado para versão 17.14+
+
+### Mapa não renderiza ou aparece preto
+- Verifique sua conexão com a internet
+- Alguns firewalls podem bloquear o acesso aos tiles de mapa
+- Verifique se o domínio `arcgisonline.com` está acessível
+- Se o problema persistir, o fundo preto será usado como fallback
 
 ## Licença
 
