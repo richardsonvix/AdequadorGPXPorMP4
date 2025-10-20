@@ -27,26 +27,13 @@ class Program
                 return;
             }
 
-            string caminhoVideo = args[0];
+            string caminhoEntrada = args[0];
             string caminhoGpxOriginal = args[1];
 
-            // Validar arquivos
-            if (!File.Exists(caminhoVideo))
-            {
-                Console.WriteLine($"❌ Erro: Arquivo de vídeo não encontrado: {caminhoVideo}");
-                return;
-            }
-
+            // Validar arquivo GPX
             if (!File.Exists(caminhoGpxOriginal))
             {
                 Console.WriteLine($"❌ Erro: Arquivo GPX não encontrado: {caminhoGpxOriginal}");
-                return;
-            }
-
-            // Validar extensões
-            if (!Path.GetExtension(caminhoVideo).Equals(".mp4", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.WriteLine($"❌ Erro: O arquivo de vídeo deve ter extensão .mp4");
                 return;
             }
 
@@ -56,14 +43,114 @@ class Program
                 return;
             }
 
+            Console.WriteLine("╔════════════════════════════════════════════════════════╗");
+            Console.WriteLine("║        VIDEO GPS FILTER - Extrator de Rastreamento    ║");
+            Console.WriteLine("╚════════════════════════════════════════════════════════╝\n");
+
+            // Verificar se é arquivo ou diretório
+            bool ehDiretorio = Directory.Exists(caminhoEntrada);
+            bool ehArquivo = File.Exists(caminhoEntrada);
+
+            if (!ehDiretorio && !ehArquivo)
+            {
+                Console.WriteLine($"❌ Erro: Caminho não encontrado: {caminhoEntrada}");
+                return;
+            }
+
+            List<string> videosParaProcessar = new List<string>();
+
+            if (ehDiretorio)
+            {
+                // Processar pasta
+                Console.WriteLine($"📁 Modo: Processamento de pasta");
+                Console.WriteLine($"   └─ Pasta: {caminhoEntrada}\n");
+
+                var arquivosMp4 = Directory.GetFiles(caminhoEntrada, "*.mp4", SearchOption.TopDirectoryOnly);
+
+                if (arquivosMp4.Length == 0)
+                {
+                    Console.WriteLine("❌ Erro: Nenhum arquivo .mp4 encontrado na pasta");
+                    return;
+                }
+
+                videosParaProcessar.AddRange(arquivosMp4);
+                Console.WriteLine($"📹 Encontrados {videosParaProcessar.Count} arquivo(s) .mp4\n");
+            }
+            else
+            {
+                // Processar arquivo único
+                if (!Path.GetExtension(caminhoEntrada).Equals(".mp4", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"❌ Erro: O arquivo de vídeo deve ter extensão .mp4");
+                    return;
+                }
+
+                Console.WriteLine($"📹 Modo: Processamento de arquivo único");
+                Console.WriteLine($"   └─ Arquivo: {Path.GetFileName(caminhoEntrada)}\n");
+
+                videosParaProcessar.Add(caminhoEntrada);
+            }
+
+            // Processar cada vídeo
+            int totalVideos = videosParaProcessar.Count;
+            int videoAtual = 0;
+            int sucessos = 0;
+            int falhas = 0;
+
+            foreach (var caminhoVideo in videosParaProcessar)
+            {
+                videoAtual++;
+
+                if (totalVideos > 1)
+                {
+                    Console.WriteLine($"\n{'═',60}");
+                    Console.WriteLine($"📹 Processando vídeo {videoAtual}/{totalVideos}: {Path.GetFileName(caminhoVideo)}");
+                    Console.WriteLine($"{'═',60}\n");
+                }
+
+                bool sucesso = await ProcessarVideo(caminhoVideo, caminhoGpxOriginal);
+
+                if (sucesso)
+                    sucessos++;
+                else
+                    falhas++;
+            }
+
+            // Resumo final para múltiplos vídeos
+            if (totalVideos > 1)
+            {
+                Console.WriteLine($"\n\n{'═',60}");
+                Console.WriteLine("📊 RESUMO FINAL DO PROCESSAMENTO");
+                Console.WriteLine($"{'═',60}");
+                Console.WriteLine($"✅ Sucessos: {sucessos}");
+                Console.WriteLine($"❌ Falhas: {falhas}");
+                Console.WriteLine($"📁 Total processado: {totalVideos}");
+                Console.WriteLine($"{'═',60}\n");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\n❌ Erro fatal durante o processamento: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Detalhes: {ex.InnerException.Message}");
+            }
+            Environment.Exit(1);
+        }
+    }
+
+    // ========================================================================
+    // FUNÇÃO DE PROCESSAMENTO DE VÍDEO
+    // ========================================================================
+
+    static async Task<bool> ProcessarVideo(string caminhoVideo, string caminhoGpxOriginal)
+    {
+        try
+        {
             // Construir caminho de saída
             string diretorioVideo = Path.GetDirectoryName(caminhoVideo);
             string nomeVideoSemExtensao = Path.GetFileNameWithoutExtension(caminhoVideo);
             string caminhoGpxSaida = Path.Combine(diretorioVideo, $"{nomeVideoSemExtensao}.gpx");
-
-            Console.WriteLine("╔════════════════════════════════════════════════════════╗");
-            Console.WriteLine("║        VIDEO GPS FILTER - Extrator de Rastreamento    ║");
-            Console.WriteLine("╚════════════════════════════════════════════════════════╝\n");
 
             // 1. Obter duração do vídeo
             Console.WriteLine("📹 Extraindo informações do vídeo...");
@@ -125,8 +212,8 @@ class Program
 
             if (pontosFiltrados.Count == 0)
             {
-                Console.WriteLine("⚠️  Aviso: Nenhum ponto GPS encontrado no intervalo de tempo do vídeo!");
-                return;
+                Console.WriteLine("⚠️  Aviso: Nenhum ponto GPS encontrado no intervalo de tempo do vídeo!\n");
+                return false;
             }
 
             // 4. Gerar novo GPX
@@ -198,15 +285,18 @@ class Program
                 Console.WriteLine($"   │  └─ Coordenadas: ({latPrimeira}, {lonPrimeira})");
                 Console.WriteLine($"   └─ Último ponto: {tempoUltimo}");
             }
+
+            return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\n❌ Erro durante o processamento: {ex.Message}");
+            Console.WriteLine($"\n❌ Erro durante o processamento de {Path.GetFileName(caminhoVideo)}: {ex.Message}");
             if (ex.InnerException != null)
             {
                 Console.WriteLine($"Detalhes: {ex.InnerException.Message}");
             }
-            Environment.Exit(1);
+            Console.WriteLine();
+            return false;
         }
     }
 
@@ -530,24 +620,38 @@ class Program
         Console.WriteLine("║        VIDEO GPS FILTER - Extrator de Rastreamento    ║");
         Console.WriteLine("╚════════════════════════════════════════════════════════╝\n");
 
-        Console.WriteLine("Uso: VideoGpsFilter.exe <caminho_video.mp4> <caminho_gpx_original.gpx>\n");
+        Console.WriteLine("Uso:");
+        Console.WriteLine("  Arquivo único: VideoGpsFilter.exe <caminho_video.mp4> <caminho_gpx.gpx>");
+        Console.WriteLine("  Pasta inteira: VideoGpsFilter.exe <pasta_videos> <caminho_gpx.gpx>\n");
 
         Console.WriteLine("Descrição:");
-        Console.WriteLine("  Extrai informações de duração e data de criação de um vídeo MP4,");
+        Console.WriteLine("  Extrai informações de duração e data de criação de vídeo(s) MP4,");
         Console.WriteLine("  filtra pontos GPS de um arquivo GPX dentro do intervalo de tempo");
-        Console.WriteLine("  do vídeo e gera um novo arquivo GPX com os pontos filtrados.\n");
+        Console.WriteLine("  do(s) vídeo(s) e gera novos arquivos GPX com mapas de satélite.\n");
+
+        Console.WriteLine("Modos de Operação:");
+        Console.WriteLine("  • Arquivo único: Processa um arquivo .mp4 específico");
+        Console.WriteLine("  • Pasta: Processa todos os arquivos .mp4 encontrados na pasta\n");
 
         Console.WriteLine("Exemplos:");
+        Console.WriteLine("  # Processar um arquivo único");
         Console.WriteLine("  VideoGpsFilter.exe C:\\videos\\meu_video.mp4 C:\\gps\\rastreamento.gpx");
-        Console.WriteLine("  VideoGpsFilter.exe \"D:\\Meus Vídeos\\viagem.mp4\" \"D:\\GPS\\track.gpx\"\n");
+        Console.WriteLine();
+        Console.WriteLine("  # Processar todos os vídeos de uma pasta");
+        Console.WriteLine("  VideoGpsFilter.exe C:\\videos C:\\gps\\rastreamento.gpx");
+        Console.WriteLine();
+        Console.WriteLine("  # Com caminhos contendo espaços");
+        Console.WriteLine("  VideoGpsFilter.exe \"D:\\Meus Vídeos\" \"D:\\GPS\\track.gpx\"\n");
 
         Console.WriteLine("Saída:");
-        Console.WriteLine("  O arquivo GPX filtrado será salvo no mesmo diretório do vídeo");
-        Console.WriteLine("  com o mesmo nome, ex: C:\\videos\\meu_video.gpx\n");
+        Console.WriteLine("  Para cada vídeo processado, serão gerados no mesmo diretório:");
+        Console.WriteLine("  • [nome_video].gpx - Arquivo GPX filtrado");
+        Console.WriteLine("  • [nome_video]_mapa.png - Imagem com mapa de satélite e traçados\n");
 
         Console.WriteLine("Requisitos:");
-        Console.WriteLine("  - Arquivo de vídeo em formato MP4");
+        Console.WriteLine("  - Arquivo(s) de vídeo em formato MP4");
         Console.WriteLine("  - Arquivo GPX com pontos de rastreamento contendo timestamps");
-        Console.WriteLine("  - Timestamps em GPX devem estar no mesmo fuso que a criação do vídeo\n");
+        Console.WriteLine("  - Timestamps em GPX devem estar no mesmo fuso que a criação do vídeo");
+        Console.WriteLine("  - Conexão com internet (para download de tiles de mapa de satélite)\n");
     }
 }

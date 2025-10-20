@@ -95,33 +95,65 @@ O executável será gerado em: `bin\Release\net9.0\[runtime]\publish\`
 ### Sintaxe
 
 ```bash
+# Processar um arquivo único
 AdequadorGPXPorMP4.exe <caminho_video.mp4> <caminho_gpx_original.gpx>
+
+# Processar todos os vídeos de uma pasta
+AdequadorGPXPorMP4.exe <pasta_videos> <caminho_gpx_original.gpx>
 ```
+
+### Modos de Operação
+
+**1. Arquivo único**: Processa um vídeo .mp4 específico
+**2. Pasta inteira**: Processa automaticamente todos os arquivos .mp4 encontrados na pasta
 
 ### Exemplos
 
 ```bash
-# Exemplo básico
+# Processar um arquivo único
 AdequadorGPXPorMP4.exe C:\videos\meu_video.mp4 C:\gps\rastreamento.gpx
 
-# Com caminhos com espaços
-AdequadorGPXPorMP4.exe "D:\Meus Vídeos\viagem.mp4" "D:\GPS\track.gpx"
+# Processar todos os vídeos de uma pasta
+AdequadorGPXPorMP4.exe C:\videos C:\gps\rastreamento.gpx
+
+# Com caminhos contendo espaços
+AdequadorGPXPorMP4.exe "D:\Meus Vídeos" "D:\GPS\track.gpx"
 ```
 
 ### Saída
 
 Os arquivos gerados serão salvos automaticamente no **mesmo diretório do vídeo** com o mesmo nome base:
 
+**Para arquivo único:**
 - Entrada: `C:\videos\meu_video.mp4`
 - Saída GPX: `C:\videos\meu_video.gpx`
 - Saída Mapa: `C:\videos\meu_video_mapa.png` (imagem PNG com mapa de satélite)
 
+**Para pasta (exemplo com 3 vídeos):**
+- Entrada: `C:\videos\` (contendo video1.mp4, video2.mp4, video3.mp4)
+- Saídas GPX: `video1.gpx`, `video2.gpx`, `video3.gpx`
+- Saídas Mapas: `video1_mapa.png`, `video2_mapa.png`, `video3_mapa.png`
+
+### Processamento em Lote
+
+Ao processar uma pasta, o programa:
+- Identifica automaticamente todos os arquivos .mp4
+- Processa cada vídeo sequencialmente
+- Exibe progresso individual para cada vídeo (X/Total)
+- Continua processando mesmo se um vídeo falhar
+- Exibe resumo final com estatísticas de sucessos e falhas
+
 ### Exemplo de Saída do Programa
+
+**Processamento de arquivo único:**
 
 ```
 ╔════════════════════════════════════════════════════════╗
 ║        VIDEO GPS FILTER - Extrator de Rastreamento    ║
 ╚════════════════════════════════════════════════════════╝
+
+📹 Modo: Processamento de arquivo único
+   └─ Arquivo: viagem.mp4
 
 📹 Extraindo informações do vídeo...
    ├─ Arquivo: viagem.mp4
@@ -140,6 +172,8 @@ Os arquivos gerados serão salvos automaticamente no **mesmo diretório do víde
 
 💾 Gerando arquivo GPX filtrado...
 🗺️  Gerando mapa visual...
+   ├─ Baixando tiles de mapa (zoom 14)...
+   ├─ Tiles baixados: 12/12
    └─ Mapa salvo: C:\videos\viagem_mapa.png
 
 ╔════════════════════════════════════════════════════════╗
@@ -152,6 +186,46 @@ Os arquivos gerados serão salvos automaticamente no **mesmo diretório do víde
    ├─ Percentual utilizado: 17.20%
    ├─ Arquivo GPX: C:\videos\viagem.gpx
    └─ Mapa visual: C:\videos\viagem_mapa.png
+```
+
+**Processamento de pasta (múltiplos vídeos):**
+
+```
+╔════════════════════════════════════════════════════════╗
+║        VIDEO GPS FILTER - Extrator de Rastreamento    ║
+╚════════════════════════════════════════════════════════╝
+
+📁 Modo: Processamento de pasta
+   └─ Pasta: C:\videos
+
+📹 Encontrados 3 arquivo(s) .mp4
+
+============================================================
+📹 Processando vídeo 1/3: video1.mp4
+============================================================
+
+[... processamento do vídeo 1 ...]
+
+============================================================
+📹 Processando vídeo 2/3: video2.mp4
+============================================================
+
+[... processamento do vídeo 2 ...]
+
+============================================================
+📹 Processando vídeo 3/3: video3.mp4
+============================================================
+
+[... processamento do vídeo 3 ...]
+
+
+============================================================
+📊 RESUMO FINAL DO PROCESSAMENTO
+============================================================
+✅ Sucessos: 3
+❌ Falhas: 0
+📁 Total processado: 3
+============================================================
 ```
 
 ## Considerações Importantes
